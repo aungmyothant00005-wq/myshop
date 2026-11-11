@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <!-- ဖုန်း Keyboard ပေါ်လာရင် စခရင်ကို ကျုံ့ပေးဖို့အတွက် viewport ကို ပြင်ထားပါတယ် -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ချမ်းမြေ့တိုင်း စိုက်ပျိုးရေးဆေးဆိုင်</title>
+    <!-- SheetJS Library for Excel Import/Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        /* Body & Layout */
+        body { display: flex; background-color: #f4f7f6; height: 100vh; height: 100dvh; /* ဖုန်း Keyboard အတွက် 100dvh သုံးထားပါတယ် */ overflow: hidden; }
+        
+        /* Sidebar (Desktop Default) */
+        .sidebar { width: 250px; background-color: #2e7d32; color: white; padding: 20px 0; display: flex; flex-direction: column; height: 100vh; height: 100dvh; transition: 0.3s; }
+        .sidebar h2 { text-align: center; margin-bottom: 10px; font-size: 22px; color: #ffd700; padding: 0 10px;}
+        .sidebar .address { text-align: center; font-size: 11px; margin-bottom: 20px; opacity: 0.8; padding: 0 10px; line-height: 1.4;}
+        .sidebar ul { list-style: none; flex-grow: 1; overflow-y: auto; }
+        .sidebar ul li { padding: 15px 20px; cursor: pointer; transition: 0.3s; font-size: 16px; }
+        .sidebar ul li:hover, .sidebar ul li.active { background-color: #1b5e20; border-left: 4px solid #ffd700; }
+        .sidebar .footer-info { text-align: center; font-size: 11px; padding: 10px; background-color: #1b5e20; opacity: 0.9; }
+        
+        /* Main Content */
+        .main-content { flex: 1; padding: 30px; overflow-y: auto; width: 100%; height: 100vh; height: 100dvh; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 10px; }
+        .header h1 { color: #333; font-size: 24px; line-height: 1.3; }
+        
+        /* Menu Toggle Button (Hidden on Desktop) */
+        .menu-toggle { display: none; font-size: 28px; cursor: pointer; color: #2e7d32; background: none; border: none; }
+
+        /* Cards */
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-left: 5px solid #2e7d32; }
+        .card h3 { color: #666; font-size: 15px; margin-bottom: 10px; }
+        .card p { font-size: 22px; font-weight: bold; color: #333; }
+        .card:nth-child(2) { border-left-color: #f57c00; }
+        .card:nth-child(3) { border-left-color: #1976d2; }
+
+        /* Sections */
+        .section { display: none; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .section.active { display: block; }
+        .section h2 { margin-bottom: 20px; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; font-size: 20px; }
+
+        /* Forms */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #555; font-weight: bold; }
+        /* ဖုန်းမှာ စာရိုက်ရလွယ်အောင် Input ကို နည်းနည်းကြီးပေးထားပါတယ် */
+        .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; outline: none; }
+        .form-group input:focus, .form-group select:focus { border-color: #2e7d32; box-shadow: 0 0 5px rgba(46, 125, 50, 0.3); }
+        button { padding: 12px 20px; background-color: #2e7d32; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; transition: 0.2s; width: 100%;}
+        @media (min-width: 769px) { button { width: auto; } } /* ကွန်ပျူတာမှာတော့ ခလုတ်ကို သဘာဝအတိုင်း ထားမယ် */
+        button:hover { background-color: #1b5e20; }
+        
+        /* Utility Buttons */
+        .btn-excel { background-color: #1d6f42; }
+        .btn-excel:hover { background-color: #155230; }
+        .btn-danger { background-color: #d32f2f; }
+        .btn-danger:hover { background-color: #b71c1c; }
+        .btn-group { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+
+        /* Tables (Responsive Wrapper) */
+        .table-responsive { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; min-width: 600px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; white-space: nowrap; }
+        th { background-color: #f2f2f2; color: #333; }
+        tr:hover { background-color: #f9f9f9; }
+        .warning { color: red; font-weight: bold; }
+
+        /* Modal (Receipt Popup) */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); overflow-y: auto; }
+        .modal-content { background-color: white; margin: 10% auto; padding: 20px; border-radius: 10px; width: 90%; max-width: 350px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .receipt-header { text-align: center; margin-bottom: 15px; border-bottom: 1px dashed #000; padding-bottom: 10px; }
+        .receipt-header h3 { margin-bottom: 5px; color: #2e7d32; font-size: 18px;}
+        .receipt-header p { font-size: 12px; color: #555; margin-bottom: 3px;}
+        .receipt-details { font-size: 14px; margin-bottom: 15px; }
+        .receipt-details p { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .receipt-table { width: 100%; font-size: 14px; margin-bottom: 15px; border-collapse: collapse; min-width: 100%; }
+        .receipt-table th, .receipt-table td { border-bottom: 1px dashed #ccc; padding: 5px 0; text-align: left; white-space: normal; }
+        .receipt-table th { background: none; }
+        .receipt-footer { text-align: center; font-size: 12px; border-top: 1px dashed #000; padding-top: 10px; }
+        .modal-buttons { display: flex; justify-content: space-between; margin-top: 20px; gap: 10px; }
+        .btn-close { background-color: #d32f2f; }
+        .btn-close:hover { background-color: #b71c1c; }
+
+        /* Overlay for mobile sidebar */
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; }
+
+        /* ===== Mobile Responsive Styles ===== */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar { position: fixed; left: -250px; top: 0; z-index: 1001; height: 100dvh; }
+            .sidebar.active { left: 0; }
+            .overlay.active { display: block; }
+            .main-content { padding: 15px; padding-bottom: 50px; /* အောက်နားမှာ နေရာလွတ်ထားမယ် */ }
+            .header { flex-direction: row; justify-content: flex-start; gap: 15px;}
+            .header h1 { font-size: 16px; } 
+            .menu-toggle { display: block; }
+            .card h3 { font-size: 14px; }
+            .card p { font-size: 20px; }
+            .btn-group { flex-direction: column; }
+            .btn-group button { width: 100%; }
+        }
+
+        /* Print Styles */
+        @media print {
+            body * { visibility: hidden; }
+            #receipt-modal, #receipt-modal * { visibility: visible; }
+            #receipt-modal { position: absolute; left: 0; top: 0; width: 100%; background: white; margin: 0; padding: 0; }
+            .modal-content { margin: 0; box-shadow: none; width: 100%; max-width: 100%; border-radius: 0; }
+            .modal-buttons { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Overlay for Mobile Menu -->
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <h2>ချမ်းမြေ့တိုင်း</h2>
+        <p class="address">စိုက်ပျိုးရေးဆေးဆိုင်<br>ခင်ဦးမြို့နယ်၊ အင်တိုင်းကြီးရွာ</p>
+        <ul>
+            <li class="active" onclick="showSection('dashboard', this)">📊 Dashboard</li>
+            <li onclick="showSection('add-product', this)">📦 ပစ္စည်းထည့်ရန်</li>
+            <li onclick="showSection('sell-product', this)">🛒 အရောင်းပြုလုပ်ရန်</li>
+            <li onclick="showSection('inventory', this)">📋 လက်ကျန်စာရင်း</li>
+            <li onclick="showSection('data-management', this)">📁 Data စီမံခန့်ခွဲရန်</li>
+        </ul>
+        <div class="footer-info">
+            ဆက်သွယ်ရန်:<br>
+            09-969248203<br>
+            09-988298051
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="header">
+            <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+            <h1>ချမ်းမြေ့တိုင်း စိုက်ပျိုးရေးဆေးဆိုင်</h1>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="section active">
+            <div class="cards">
+                <div class="card">
+                    <h3>စုစုပေါင်း ရောင်းချမှု (ကျပ်)</h3>
+                    <p id="total-sales">0</p>
+                </div>
+                <div class="card">
+                    <h3>ယနေ့ အရောင်းစုစုပေါင်း (ကျပ်)</h3>
+                    <p id="today-sales">0</p>
+                </div>
+                <div class="card">
+                    <h3>လက်ကျန်ပစ္စည်း အမျိုးအစား</h3>
+                    <p id="total-products">0</p>
+                </div>
+            </div>
+            <h2>နောက်ဆုံး အရောင်းမှတ်တမ်းများ</h2>
+            <div class="table-responsive">
+                <table id="recent-sales-table">
+                    <thead>
+                        <tr>
+                            <th>ရက်စွဲ</th>
+                            <th>ဝယ်သူ</th>
+                            <th>ပစ္စည်း</th>
+                            <th>အရေအတွက်</th>
+                            <th>စုစုပေါင်း (ကျပ်)</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Add Product Section -->
+        <div id="add-product" class="section">
+            <h2>ပစ္စည်းအသစ် ထည့်သွင်းရန်</h2>
+            <form id="product-form">
+                <div class="form-group">
+                    <label>ပစ္စည်းအမည်</label>
+                    <input type="text" id="p-name" required placeholder="ဥပမာ - NPK 15-15-15">
+                </div>
+                <div class="form-group">
+                    <label>အမျိုးအစား</label>
+                    <select id="p-category">
+                        <option value="မြေသြဇာ">မြေသြဇာ</option>
+                        <option value="ပိုးသတ်ဆေး">ပိုးသတ်ဆေး</option>
+                        <option value="မျိုးစေ့">မျိုးစေ့</option>
+                        <option value="အခြား">အခြား</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>ဝယ်ဈေး (ကျပ်)</label>
+                    <input type="number" id="p-buy-price" required>
+                </div>
+                <div class="form-group">
+                    <label>ရောင်းဈေး (ကျပ်)</label>
+                    <input type="number" id="p-sell-price" required>
+                </div>
+                <div class="form-group">
+                    <label>အရေအတွက်</label>
+                    <input type="number" id="p-stock" required>
+                </div>
+                <button type="submit">ထည့်သွင်းမည်</button>
+            </form>
+        </div>
+
+        <!-- Sell Product Section -->
+        <div id="sell-product" class="section">
+            <h2>အရောင်း ပြုလုပ်ရန်</h2>
+            <form id="sell-form">
+                <div class="form-group">
+                    <label>ဝယ်သူအမည် (Customer Name)</label>
+                    <input type="text" id="s-customer" placeholder="ဥပမာ - ဦးမောင်မောင်" required>
+                </div>
+                <div class="form-group">
+                    <label>ပစ္စည်း ရွေးချယ်ပါ</label>
+                    <select id="s-product" required></select>
+                </div>
+                <div class="form-group">
+                    <label>အရေအတွက်</label>
+                    <input type="number" id="s-qty" required min="1">
+                </div>
+                <button type="submit">ရောင်းချမည် & ဘောက်ချာထုတ်မည်</button>
+            </form>
+        </div>
+
+        <!-- Inventory Section -->
+        <div id="inventory" class="section">
+            <h2>လက်ကျန်ပစ္စည်း စာရင်း</h2>
+            <div class="table-responsive">
+                <table id="inventory-table">
+                    <thead>
+                        <tr>
+                            <th>ပစ္စည်းအမည်</th>
+                            <th>အမျိုးအစား</th>
+                            <th>ဝယ်ဈေး</th>
+                            <th>ရောင်းဈေး</th>
+                            <th>လက်ကျန်</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Data Management Section -->
+        <div id="data-management" class="section">
+            <h2>Excel / Data စီမံခန့်ခွဲမှု</h2>
+            <p style="margin-bottom: 20px; color: #555; font-size: 14px;">သင့်ဆိုင်ရှိ Excel ဖိုင်များနှင့် ချိတ်ဆက်အသုံးပြုရန် ဤနေရာတွင် လုပ်ဆောင်ပါ။</p>
+            
+            <div class="btn-group">
+                <div>
+                    <input type="file" id="excel-file" accept=".xlsx, .xls, .csv" style="display: none;" onchange="importExcel(event)">
+                    <button class="btn-excel" onclick="document.getElementById('excel-file').click()">📥 ပစ္စည်းစာရင်း (Excel) သွင်းမည်</button>
+                </div>
+                <button class="btn-excel" onclick="exportData('products')">📤 ပစ္စည်းစာရင်း (Excel) ထုတ်မည်</button>
+                <button class="btn-excel" onclick="exportData('sales')">📤 အရောင်းစာရင်း (Excel) ထုတ်မည်</button>
+            </div>
+
+            <hr style="margin: 20px 0; border: 1px solid #eee;">
+
+            <h3 style="color: #d32f2f; margin-bottom: 10px; font-size: 16px;">အန္တရာယ်ရှိသော လုပ်ဆောင်ချက်</h3>
+            <p style="font-size: 14px; color: #666; margin-bottom: 10px;">စမ်းသုံးကြည့်ပြီး Data အားလုံးကို ပြန်ဖျက်ချင်ပါက အောက်ပါ Button ကို နှိပ်ပါ။ (ဖျက်လိုက်ရင် ပြန်မရနိုင်ပါ)</p>
+            <button class="btn-danger" onclick="clearAllData()">🗑️ Data အားလုံး ရှင်းလင်းမည်</button>
+        </div>
+
+    </div>
+
+    <!-- Receipt Modal -->
+    <div id="receipt-modal" class="modal">
+        <div class="modal-content">
+            <div id="printable-receipt">
+                <div class="receipt-header">
+                    <h3>ချမ်းမြေ့တိုင်း</h3>
+                    <p>စိုက်ပျိုးရေးဆေးဆိုင်</p>
+                    <p>ခင်ဦးမြို့နယ်၊ အင်တိုင်းကြီးရွာ</p>
+                    <p>ဖုန်း: 09-969248203, 09-988298051</p>
+                </div>
+                <div class="receipt-details">
+                    <p><strong>ရက်စွဲ:</strong> <span id="rc-date"></span></p>
+                    <p><strong>ဝယ်သူ:</strong> <span id="rc-customer"></span></p>
+                </div>
+                <table class="receipt-table">
+                    <thead>
+                        <tr>
+                            <th>ပစ္စည်း</th>
+                            <th>အရေအတွက်</th>
+                            <th>ကျသင့်ငွေ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rc-items"></tbody>
+                </table>
+                <div class="receipt-details" style="border-top: 1px dashed #000; padding-top: 10px;">
+                    <p><strong>စုစုပေါင်း:</strong> <span id="rc-total"></span> ကျပ်</p>
+                </div>
+                <div class="receipt-footer">
+                    <p>ဝယ်ယူအားပေးမှုကို ကျေးဇူးတင်ပါသည်။</p>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button onclick="window.print()">🖨️ Print ထုတ်မည်</button>
+                <button class="btn-close" onclick="closeReceipt()">ပိတ်မည်</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data Store (LocalStorage)
+        let products = JSON.parse(localStorage.getItem('chan_myae_products')) || [];
+        let sales = JSON.parse(localStorage.getItem('chan_myae_sales')) || [];
+
+        // Mobile Menu Toggle
+        function toggleMenu() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('overlay').classList.toggle('active');
+        }
+
+        // Navigation
+        function showSection(id, element) {
+            document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.querySelectorAll('.sidebar li').forEach(li => li.classList.remove('active'));
+            if(element) element.classList.add('active');
+
+            if (window.innerWidth <= 768) {
+                toggleMenu();
+            }
+
+            if(id === 'dashboard') updateDashboard();
+            if(id === 'inventory') renderInventory();
+            if(id === 'sell-product') populateProductSelect();
+        }
+
+        // Add Product
+        document.getElementById('product-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const newProduct = {
+                id: Date.now(),
+                name: document.getElementById('p-name').value,
+                category: document.getElementById('p-category').value,
+                buyPrice: parseFloat(document.getElementById('p-buy-price').value),
+                sellPrice: parseFloat(document.getElementById('p-sell-price').value),
+                stock: parseInt(document.getElementById('p-stock').value)
+            };
+            products.push(newProduct);
+            saveData();
+            this.reset();
+            alert('ပစ္စည်း ထည့်သွင်းပြီးပါပြီ။');
+            updateDashboard();
+        });
+
+        function populateProductSelect() {
+            const select = document.getElementById('s-product');
+            select.innerHTML = '<option value="">-- ရွေးချယ်ပါ --</option>';
+            products.forEach(p => {
+                if(p.stock > 0) {
+                    select.innerHTML += `<option value="${p.id}">${p.name} (လက်ကျန်: ${p.stock})</option>`;
+                }
+            });
+        }
+
+        // Sell Product
+        document.getElementById('sell-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const customerName = document.getElementById('s-customer').value;
+            const productId = parseInt(document.getElementById('s-product').value);
+            const qty = parseInt(document.getElementById('s-qty').value);
+            
+            const productIndex = products.findIndex(p => p.id === productId);
+            if (productIndex > -1) {
+                if (products[productIndex].stock >= qty) {
+                    products[productIndex].stock -= qty;
+                    
+                    const now = new Date();
+                    const dateOnly = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+                    const fullDateStr = now.toLocaleDateString('my-MM') + ' ' + now.toLocaleTimeString('my-MM', {hour: '2-digit', minute:'2-digit'});
+                    
+                    const totalAmount = qty * products[productIndex].sellPrice;
+
+                    const sale = {
+                        dateRaw: dateOnly,
+                        date: fullDateStr,
+                        customer: customerName,
+                        productName: products[productIndex].name,
+                        qty: qty,
+                        unitPrice: products[productIndex].sellPrice,
+                        total: totalAmount
+                    };
+                    sales.push(sale);
+                    saveData();
+                    
+                    showReceipt(customerName, fullDateStr, products[productIndex].name, qty, products[productIndex].sellPrice, totalAmount);
+                    this.reset();
+                    populateProductSelect();
+                    updateDashboard();
+                } else {
+                    alert('လက်ကျန် မလုံလောက်ပါ!');
+                }
+            }
+        });
+
+        function showReceipt(customer, date, productName, qty, unitPrice, total) {
+            document.getElementById('rc-customer').innerText = customer;
+            document.getElementById('rc-date').innerText = date;
+            document.getElementById('rc-total').innerText = total.toLocaleString();
+            document.getElementById('rc-items').innerHTML = `
+                <tr>
+                    <td>${productName}</td>
+                    <td>${qty}</td>
+                    <td>${(qty * unitPrice).toLocaleString()} ကျပ်</td>
+                </tr>`;
+            document.getElementById('receipt-modal').style.display = 'block';
+        }
+
+        function closeReceipt() {
+            document.getElementById('receipt-modal').style.display = 'none';
+        }
+
+        function renderInventory() {
+            const tbody = document.querySelector('#inventory-table tbody');
+            tbody.innerHTML = '';
+            products.forEach(p => {
+                tbody.innerHTML += `<tr>
+                    <td>${p.name}</td>
+                    <td>${p.category}</td>
+                    <td>${p.buyPrice.toLocaleString()}</td>
+                    <td>${p.sellPrice.toLocaleString()}</td>
+                    <td class="${p.stock < 5 ? 'warning' : ''}">${p.stock}</td>
+                </tr>`;
+            });
+        }
+
+        function updateDashboard() {
+            const totalSales = sales.reduce((sum, s) => sum + s.total, 0);
+            
+            const today = new Date();
+            const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+            const todaySales = sales.filter(s => s.dateRaw === todayStr).reduce((sum, s) => sum + s.total, 0);
+            
+            document.getElementById('total-sales').innerText = totalSales.toLocaleString() + ' ကျပ်';
+            document.getElementById('today-sales').innerText = todaySales.toLocaleString() + ' ကျပ်';
+            document.getElementById('total-products').innerText = products.length + ' မျိုး';
+
+            const tbody = document.querySelector('#recent-sales-table tbody');
+            tbody.innerHTML = '';
+            sales.slice(-5).reverse().forEach(s => {
+                tbody.innerHTML += `<tr>
+                    <td>${s.date}</td>
+                    <td>${s.customer}</td>
+                    <td>${s.productName}</td>
+                    <td>${s.qty}</td>
+                    <td>${s.total.toLocaleString()} ကျပ်</td>
+                </tr>`;
+            });
+        }
+
+        function saveData() {
+            localStorage.setItem('chan_myae_products', JSON.stringify(products));
+            localStorage.setItem('chan_myae_sales', JSON.stringify(sales));
+        }
+
+        // --- Excel Functions ---
+        function importExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                jsonData.forEach(row => {
+                    if(row.Name && row.SellPrice) {
+                        products.push({
+                            id: Date.now() + Math.random(),
+                            name: row.Name,
+                            category: row.Category || 'အခြား',
+                            buyPrice: parseFloat(row.BuyPrice) || 0,
+                            sellPrice: parseFloat(row.SellPrice) || 0,
+                            stock: parseInt(row.Stock) || 0
+                        });
+                    }
+                });
+                
+                saveData();
+                alert('Excel မှ ပစ္စည်းစာရင်းများ သွင်းယူပြီးပါပြီ။');
+                updateDashboard();
+                renderInventory();
+                document.getElementById('excel-file').value = '';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function exportData(type) {
+            let dataToExport = [];
+            let fileName = '';
+
+            if (type === 'products') {
+                dataToExport = products.map(p => ({
+                    Name: p.name, Category: p.category, BuyPrice: p.buyPrice, SellPrice: p.sellPrice, Stock: p.stock
+                }));
+                fileName = 'ChanMyae_Products.xlsx';
+            } else if (type === 'sales') {
+                dataToExport = sales.map(s => ({
+                    Date: s.date, Customer: s.customer, Product: s.productName, Quantity: s.qty, UnitPrice: s.unitPrice, Total: s.total
+                }));
+                fileName = 'ChanMyae_Sales.xlsx';
+            }
+
+            if (dataToExport.length === 0) {
+                alert('ထုတ်ယူရန် Data မရှိသေးပါဘူး။');
+                return;
+            }
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+            XLSX.writeFile(workbook, fileName);
+        }
+
+        function clearAllData() {
+            if (confirm("သင် Data အားလုံးကို ဖျက်ပစ်ချင်တာ သေချာပါသလား? (ပြန်မရနိုင်ပါ)")) {
+                localStorage.removeItem('chan_myae_products');
+                localStorage.removeItem('chan_myae_sales');
+                products = [];
+                sales = [];
+                alert('Data အားလုံး ရှင်းလင်းသွားပါပြီ။');
+                updateDashboard();
+                renderInventory();
+                populateProductSelect();
+            }
+        }
+
+        // Initialize Dashboard
+        updateDashboard();
+    </script>
+</body>
+</html>
